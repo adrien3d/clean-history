@@ -42,7 +42,7 @@ func SaveHistory(fileName string, data[][]string)(len int) {
 func main() {
 	res, orSize := OpenHistory("/Users/adrien/.zsh_history")
 	// Order by command alphabetical order
-	fmt.Println(res)
+	// fmt.Println(res)
 	sort.Slice(res, func(i, j int) bool { return res[i][1] < res[j][1]})
 
 	// Remove duplicates
@@ -57,5 +57,5 @@ func main() {
 
 	destSize := SaveHistory("/Users/adrien/.zsh_history", res)
 
-	fmt.Println(orSize, destSize, orSize-destSize)
+	fmt.Println("Sizes: Original:", orSize, "\tRemoved:", orSize-destSize, "\tNew:", destSize)
 }
