@@ -1,24 +1,41 @@
-use std::fs;
-use std::process::Command;
+use std::collections::HashSet;
+use std::fs::File;
+use std::io::{self, BufRead, BufReader, Write};
 
-fn main() {
-    pretty_env_logger::init();
-
+fn main() -> io::Result<()> {
     let user_dirs = directories::UserDirs::new().expect("Failed to get user directories");
-    let history_path = user_dirs.home_dir().join(".zsh_history_test");
+    let input_path = user_dirs.home_dir().join(".zsh_history");
+    let output_path = user_dirs.home_dir().join(".zsh_history_cleaned");
 
-    // let mut file = OpenOptions::new()
-    //     .open(&history_path)
-    //     .expect("Failed to open file");
+    let file = File::open(input_path)?;
+    let reader = BufReader::new(file);
 
-    // let mut writer = BufWriter::new(&mut file);
+    let mut seen = HashSet::new();
+    let mut unique_commands = Vec::new();
 
-    let history = fs::read_to_string(history_path.clone()).expect("Unable to read file");
-    let cleaned_history = history.replace("\n", " \n");
+    // We reverse to keep the *last* occurrence
+    let lines: Vec<_> = reader.lines().collect::<Result<_, _>>()?;
+    for line in lines.iter().rev() {
+        // Extract command portion from the zsh history line
+        let command = if let Some(index) = line.find(";") {
+            &line[index + 1..]
+        } else {
+            line
+        };
 
-    fs::write(history_path, cleaned_history).expect("Unable to write file");
+        if !seen.contains(command) {
+            seen.insert(command.to_string());
+            unique_commands.push(line.clone());
+        }
+    }
 
-    Command::new("history")
-        .status()
-        .expect("Failed to execute command");
+    unique_commands.reverse(); // Restore original order (keeping last occurrences)
+
+    let mut output = File::create(&output_path)?;
+    for line in unique_commands {
+        writeln!(output, "{}", line)?;
+    }
+
+    println!("De-duplicated history written to {:?}", &output_path);
+    Ok(())
 }
